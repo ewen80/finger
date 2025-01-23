@@ -4,8 +4,12 @@
 
 #include "PubSubClient.h"
 
+// 定义mqttCallback函数指针
+typedef void (*mqttCallbackFunc)(char *, byte *, unsigned int );
+
 extern PubSubClient mqtt_client;
 
 void connectToMQTT();
+void mqttSetup(mqttCallbackFunc mqttCallback);
 
 #endif

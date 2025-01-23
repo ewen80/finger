@@ -1,4 +1,4 @@
-#include "common.h"
+#include "my_common.h"
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
@@ -6,7 +6,7 @@
 WiFiUDP udp;
 NTPClient time_client(udp, 3600*8);
 
-void initNTP(){
+void ntpSetup(){
   time_client.begin();
 }
 

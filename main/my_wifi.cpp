@@ -1,18 +1,12 @@
-#include "common.h"
+#include "my_common.h"
 #include "WiFiClientSecure.h"
 #include "WiFi.h"
-
-// 定义 Wi-Fi 名与密码
-//const char * wifi_ssid = "guest";
-//const char * wifi_password = "guest@123";
-const char * wifi_ssid = "HappyFamily";
-const char * wifi_password = "8310188011";
 
 WiFiClientSecure esp_client;
 
 void connectToWiFi() {
   WiFi.disconnect(true);
-  WiFi.begin(wifi_ssid, wifi_password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   #ifdef DEBUG
     Serial.print("Connecting to WiFi");
   #endif

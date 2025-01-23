@@ -1,7 +1,7 @@
-#include "common.h"
+#include "my_common.h"
 #include "Crypto.h"
 #include "SHA256.h"
-#include <ArduinoJson.h>
+
 #include "my_wifi.h"
 #include "my_mqtt.h"
 #include "my_ntp.h"
@@ -106,38 +106,12 @@ void connectToMQTT() {
    }
 }
 
-// mqtt回调函数
-void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length) {
-  #ifdef DEBUG
-    Serial.print("Message received on mqtt_topic: ");
-    Serial.println(mqtt_topic);
-    Serial.print("Message: ");
-  
-    for (unsigned int i = 0; i < length; i++) {
-        Serial.print((char) payload[i]);
-    }
-    Serial.println("\n-----------------------");
-  #endif
-  
-  StaticJsonDocument<256> doc;
-  DeserializationError error = deserializeJson(doc, payload);
-  if (error) {
-    #ifdef DEBUG
-      Serial.print("deserializeJson() failed: ");
-      Serial.println(error.c_str());
-    #endif
-    return;
-  }
 
-  String topic = String(mqtt_topic).substring(29);
-  // 触发手指开关指令
-  if(topic == "/thing/action/execute"){
-    // fingerTouch();
-  }
-}
+
+
 
 // mqtt配置
-void mqttSetup(){
+void mqttSetup(mqttCallbackFunc mqttCallback){
   esp_client.setCACert(ca_cert);
   
   mqtt_client.setServer(mqtt_broker, mqtt_port);
