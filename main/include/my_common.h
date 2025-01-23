@@ -10,9 +10,9 @@
 #define SERVO_PIN 18
 #define SERVO_DEFAULT_ANGLE 0  // 舵机初始角度
 
-// #define WIFI_SSID "HappyFamily"
-// #define WIFI_PASSWORD "8310188011"
-#define WIFI_SSID "guest"
-#define WIFI_PASSWORD "guest@123"
+#define WIFI_SSID "HappyFamily"
+#define WIFI_PASSWORD "8310188011"
+// #define WIFI_SSID "guest"
+// #define WIFI_PASSWORD "guest@123"
 
 #endif
