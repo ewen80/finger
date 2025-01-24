@@ -11,6 +11,8 @@
 
 static const char *TAG = "My_Debug";
 
+// led任务句柄
+TaskHandle_t xLEDTaskHandle = NULL;
 // 手指压力检测任务句柄
 TaskHandle_t xFingerMeasurePressureTaskHandle = NULL;
 // 舵机控制任务句柄
@@ -51,17 +53,22 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
 }
 
 // 手指开始触发
-void fingerTouch(){
+void fingerTouch()
+{
   // 启动压力检测
   xTaskNotifyGive(xFingerMeasurePressureTaskHandle);
   // 通知舵机正传
   xTaskNotify(xServoTaskHandle, 0, eSetValueWithOverwrite);
-
 }
 
 void setup()
 {
-  led_status = 2;
+
+  // 创建LED任务
+  xLEDTaskHandle = beginLedTask();
+
+  setLedFlash(xLEDTaskHandle);
+
 #ifdef DEBUG
   Serial.begin(115200);
   while (!Serial)
@@ -71,16 +78,13 @@ void setup()
 #endif
   analogReadResolution(12);
 
-  // 创建LED任务
-  beginLedTask();
   // 创建手指压力检测任务
-  xFingerMeasurePressureTaskHandle =  beginMeasurePressureTask();
+  xFingerMeasurePressureTaskHandle = beginMeasurePressureTask();
   // 创建舵机控制任务
   xServoTaskHandle = beginServoTask();
 
   // // 连接WIFI
   // connectToWiFi();
-
   wifiSetup();
   // 初始化NTP
   ntpSetup();
@@ -89,16 +93,20 @@ void setup()
   // 连接mqtt
   mqttSetup(mqttCallback);
 
-  led_status = 1;
 }
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
   if (!mqtt_client.connected())
   {
+    setLedFlash(xLEDTaskHandle);
     connectToMQTT();
   }
+  else
+  {
+    setLedOff(xLEDTaskHandle);
+  }
   mqtt_client.loop();
-  delay(500);
+
+  delay(5000);
 }

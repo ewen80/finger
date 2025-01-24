@@ -3,9 +3,10 @@
 
 #include "Arduino.h"
 
-extern volatile byte led_status; // 保存led状态 0：暗 1：亮 2：闪
-
-void beginLedTask();
+TaskHandle_t beginLedTask();
 void led(void *pvParameters);
+void setLedON(TaskHandle_t led_task);
+void setLedOff(TaskHandle_t led_task);
+void setLedFlash(TaskHandle_t led_task);
 
 #endif
