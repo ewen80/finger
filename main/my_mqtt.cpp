@@ -1,10 +1,12 @@
 #include "my_common.h"
 #include "Crypto.h"
 #include "SHA256.h"
-
-#include "my_wifi.h"
 #include "my_mqtt.h"
 #include "my_ntp.h"
+#include "my_wifi_idf.h"
+#include "WiFiClientSecure.h"
+
+WiFiClientSecure esp_client;
 
 // MQTT Broker settings
 const char *mqtt_broker = "m1.tuyacn.com";
@@ -101,7 +103,7 @@ void connectToMQTT() {
         Serial.print(mqtt_client.state());
         Serial.println(" try again in 5 seconds");
       #endif
-        delay(5000);
+      vTaskDelay(pdMS_TO_TICKS(5000));
     }
    }
 }

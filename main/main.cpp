@@ -1,7 +1,6 @@
 #include "my_common.h"
 #include <ArduinoJson.h>
 #include "main.h"
-#include "my_wifi.h"
 #include "my_wifi_idf.h"
 #include "my_ntp.h"
 #include "my_mqtt.h"
@@ -9,7 +8,7 @@
 #include "my_pressure.h"
 #include "my_servo.h"
 
-static const char *TAG = "My_Debug";
+// static const char *TAG = "My_Debug";
 
 // led任务句柄
 TaskHandle_t xLEDTaskHandle = NULL;
@@ -83,8 +82,7 @@ void setup()
   // 创建舵机控制任务
   xServoTaskHandle = beginServoTask();
 
-  // // 连接WIFI
-  // connectToWiFi();
+  // 连接WIFI
   wifiSetup();
   // 初始化NTP
   ntpSetup();
@@ -108,5 +106,5 @@ void loop()
   }
   mqtt_client.loop();
 
-  delay(5000);
+  vTaskDelay(pdMS_TO_TICKS(5000));
 }

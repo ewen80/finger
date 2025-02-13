@@ -16,7 +16,7 @@ TaskHandle_t beginServoTask()
     xTaskCreate(
         servo,
         "servo",
-        1024 * 2,
+        1024 * 3,
         NULL,
         1,
         &xServoTaskHandle);
@@ -39,7 +39,9 @@ void servoSetup()
     // 舵机初始角度
     servo_angle = SERVO_DEFAULT_ANGLE;
     myservo.write(servo_angle);
-    delay(100);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    // myservo.detach();
+    // vTaskDelay(pdMS_TO_TICKS(500));
 }
 
 // 舵机控制任务
@@ -70,13 +72,13 @@ void servo(void *pvParameters)
             // 0 正转
             angleB = 180;
             step = 1;
-            speed = 50;
+            speed = 500;
             break;
         case 1:
             // 1 反转
             angleB = 0;
             step = -1;
-            speed = 15;
+            speed = 150;
             break;
         default : 
             angleB = 0;
@@ -84,6 +86,14 @@ void servo(void *pvParameters)
             speed = 0;
             break;
         }
+
+#ifdef DEBUG
+                Serial.printf("绑定舵机");
+#endif
+
+        // // 舵机准备启动，绑定舵机
+        // myservo.attach(SERVO_PIN, 500, 2500);
+        // vTaskDelay(pdMS_TO_TICKS(500));
 
         for (; servo_angle != angleB; servo_angle += step)
         {
@@ -99,13 +109,22 @@ void servo(void *pvParameters)
             }
             else
             {
-// 收到舵机停止指令，继续等待任务通知
+                // 收到舵机停止指令，继续等待任务通知
+                // myservo.detach();
 #ifdef DEBUG
                 Serial.println("舵机停止");
 #endif
                 break;
             }
         }
+
+#ifdef DEBUG
+                Serial.printf("解绑舵机");
+#endif
+        // // 停止转动，解绑舵机
+        // myservo.detach();
+        // vTaskDelay(pdMS_TO_TICKS(500));
+
         // 如果手指全程没有达到压力阈值则回缩
         if (!servo_quit && ulNotifiedValue == 0)
         {

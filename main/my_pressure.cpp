@@ -25,6 +25,9 @@ bool measurePressure()
     while (1)
     {
         pressure_value = analogRead(PRESSURE_PIN);
+#ifdef DEBUG
+             Serial.printf("ADC analog value = %d\n", pressure_value);
+#endif
         if (pressure_value > PRESSURE_THRESHOLD)
         {
             if (++threshold_times == 3)
@@ -34,9 +37,7 @@ bool measurePressure()
             }
         }
 
-#ifdef DEBUG
-        //      Serial.printf("ADC analog value = %d\n", pressure_value);
-#endif
+
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
