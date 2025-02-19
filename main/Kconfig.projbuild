@@ -1,4 +1,4 @@
-menu "Example Configuration"
+menu "WIFI EXAMPLE Configuration"
 
     config EXAMPLE_GET_AP_INFO_FROM_STDIN
         bool "Get AP info from console"
