@@ -54,8 +54,8 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
 // 手指开始触发
 void fingerTouch()
 {
-  // 启动压力检测
-  xTaskNotifyGive(xFingerMeasurePressureTaskHandle);
+  // // 启动压力检测
+  // xTaskNotifyGive(xFingerMeasurePressureTaskHandle);
   // 通知舵机正传
   xTaskNotify(xServoTaskHandle, 0, eSetValueWithOverwrite);
 }
@@ -77,11 +77,6 @@ void setup()
 #endif
   analogReadResolution(12);
 
-  // 创建手指压力检测任务
-  xFingerMeasurePressureTaskHandle = beginMeasurePressureTask();
-  // 创建舵机控制任务
-  xServoTaskHandle = beginServoTask();
-
   // 连接WIFI
   wifiSetup();
   // 初始化NTP
@@ -90,6 +85,11 @@ void setup()
   servoSetup();
   // 连接mqtt
   mqttSetup(mqttCallback);
+
+  // 创建手指压力检测任务
+  xFingerMeasurePressureTaskHandle = beginMeasurePressureTask();
+  // 创建舵机控制任务
+  xServoTaskHandle = beginServoTask();
 
 }
 
