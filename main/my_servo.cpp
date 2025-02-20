@@ -1,6 +1,7 @@
 #include "iot_servo.h"
 #include "my_common.h"
 #include "my_servo.h"
+#include <esp_wifi.h>
 
 volatile bool servo_quit = false; // 舵机退出执行任务标志位
 volatile byte servo_angle;        // 记录舵机当前角度
@@ -96,6 +97,8 @@ void servo(void *pvParameters)
         //     speed = 0;
         //     break;
         // }
+
+        esp_wifi_set_ps(WIFI_PS_NONE);
 
         while (1)
         {
