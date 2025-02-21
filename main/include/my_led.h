@@ -3,6 +3,8 @@
 
 #include "Arduino.h"
 
+extern TaskHandle_t xLEDTaskHandle;
+
 TaskHandle_t beginLedTask();
 void led(void *pvParameters);
 void setLedON(TaskHandle_t led_task);

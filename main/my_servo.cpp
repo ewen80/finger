@@ -1,10 +1,11 @@
 #include "iot_servo.h"
 #include "my_common.h"
 #include "my_servo.h"
+#include "my_pressure.h"
 #include <esp_wifi.h>
 
-volatile bool servo_quit = false; // 舵机退出执行任务标志位
-volatile byte servo_angle;        // 记录舵机当前角度
+bool servo_quit = false; // 舵机退出执行任务标志位
+byte servo_angle;        // 记录舵机当前角度
 
 static const char *TAG = "my_servo";
 
@@ -28,7 +29,7 @@ TaskHandle_t beginServoTask()
 
 void servoSetup()
 {
-    ESP_LOGI(TAG, "舵机初始化");
+    ESP_LOGI(TAG, "servo setup");
 
     // Configure the servo
     servo_config_t servo_cfg = {
@@ -61,13 +62,14 @@ void servo(void *pvParameters)
     byte angleB, step;
     uint16_t speed;
     bool waitNotify = true; // 是否需要等待任务通知
-    // for (;;)
+
+    for (;;)
     {
 #ifdef DEBUG
         Serial.printf("舵机等待指令。servo_quit=%d\n", servo_quit);
 #endif
 
-        // if (waitNotify)
+        if (waitNotify)
         {
             ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 #ifdef DEBUG
@@ -75,73 +77,70 @@ void servo(void *pvParameters)
             Serial.println(ulNotifiedValue);
 #endif
         }
-        // waitNotify = true;
+        waitNotify = true;
 
-        // switch (ulNotifiedValue)
-        // {
-        // case 0:
-        //     // 0 正转
-        //     angleB = calibration_value_180;
-        //     step = 1;
-        //     speed = 100;
-        //     break;
-        // case 1:
-        //     // 1 反转
-        //     angleB = calibration_value_0;
-        //     step = -1;
-        //     speed = 50;
-        //     break;
-        // default:
-        //     angleB = calibration_value_0;
-        //     step = 0;
-        //     speed = 0;
-        //     break;
-        // }
-
-        esp_wifi_set_ps(WIFI_PS_NONE);
-
-        while (1)
+        switch (ulNotifiedValue)
         {
-            // Set the angle of the servo
-            for (int i = calibration_value_0; i <= calibration_value_180; i += 1)
-            {
-                iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, i);
-                vTaskDelay(20 / portTICK_PERIOD_MS);
-            }
-            // Return to the initial position
-            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, calibration_value_0);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        case 0:
+            // 0 正转
+            angleB = calibration_value_180;
+            step = 1;
+            speed = 100;
+            break;
+        case 1:
+            // 1 反转
+            angleB = calibration_value_0;
+            step = -1;
+            speed = 50;
+            break;
+        default:
+            angleB = calibration_value_0;
+            step = 0;
+            speed = 0;
+            break;
         }
 
-        //         for (; servo_angle != angleB; servo_angle += step)
-        //         {
-        //             // 是否收到舵机停止指令
-        //             if (!servo_quit)
-        //             {
-        // #ifdef DEBUG
-        //                 Serial.print("舵机：");
-        //                 Serial.println(servo_angle);
-        // #endif
-        //                 iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, servo_angle);
-        //                 vTaskDelay(pdMS_TO_TICKS(speed));
-        //             }
-        //             else
-        //             {
-        //                 // 收到舵机停止指令，继续等待任务通知
-        // #ifdef DEBUG
-        //                 Serial.println("舵机停止");
-        // #endif
-        //                 break;
-        //             }
-        //         }
+        // esp_wifi_set_ps(WIFI_PS_NONE);
 
-        // // 如果手指全程没有达到压力阈值则回缩
-        // if (!servo_quit && ulNotifiedValue == 0)
+        // while (1)
         // {
-        //     waitNotify = false;
-        //     ulNotifiedValue = 1;
+        //     // Set the angle of the servo
+        //     for (int i = calibration_value_0; i <= calibration_value_180; i += 1)
+        //     {
+        //         iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, i);
+        //         vTaskDelay(20 / portTICK_PERIOD_MS);
+        //     }
+        //     // Return to the initial position
+        //     iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, calibration_value_0);
+        //     vTaskDelay(1000 / portTICK_PERIOD_MS);
         // }
-        // servo_quit = false;
+
+        for (; servo_angle != angleB; servo_angle += step)
+        {
+            byte threshold_times = 0;
+#ifdef DEBUG
+            Serial.print("servo angle: ");
+            Serial.println(servo_angle);
+#endif
+            // 检查压力值
+            if (ulNotifiedValue == 0 && pressure_value > PRESSURE_THRESHOLD && ++threshold_times == 3)
+            {
+                // 检查压力值连续3次超过阈值,舵机回缩
+                break;
+            }
+            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, servo_angle);
+            vTaskDelay(pdMS_TO_TICKS(speed));
+        }
+
+        // 如果舵机正向运动中手指遇到压力或者全程没有达到压力阈值则回缩
+        if (ulNotifiedValue == 0)
+        {
+            waitNotify = false;
+            ulNotifiedValue = 1;
+        } else {
+            // 通知手指压力检测任务停止
+            pressure_stop_signal = true;
+        }
     }
 
     vTaskDelete(NULL);

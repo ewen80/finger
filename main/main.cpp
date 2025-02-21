@@ -56,8 +56,6 @@ void fingerTouch()
 {
   // 启动压力检测
   xTaskNotifyGive(xFingerMeasurePressureTaskHandle);
-  // 通知舵机正传
-  xTaskNotify(xServoTaskHandle, 0, eSetValueWithOverwrite);
 }
 
 void setup()

@@ -17,30 +17,6 @@ TaskHandle_t beginMeasurePressureTask()
     return xFingerMeasurePressureTaskHandle;
 }
 
-// 检测压力值并在到达阈值后返回true
-bool measurePressure()
-{
-    int threshold_times = 0;
-    unsigned int pressure_value;
-    while (1)
-    {
-        pressure_value = analogRead(PRESSURE_PIN);
-#ifdef DEBUG
-            //  Serial.printf("ADC analog value = %d\n", pressure_value);
-#endif
-        if (pressure_value > PRESSURE_THRESHOLD)
-        {
-            if (++threshold_times == 3)
-            {
-                // 如果连续3次超过阈值
-                return true;
-            }
-        }
-
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
 
 // 手指压力检测任务
 void measure(void *pvParameters)
@@ -52,12 +28,16 @@ void measure(void *pvParameters)
         ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if (ulNotifiedValue > 0)
         {
-            if (measurePressure())
+            // 通知舵机任务启动
+            xTaskNotify(xServoTaskHandle, 0, eSetValueWithOverwrite);
+
+            pressure_stop_signal = false;
+
+            while (!pressure_stop_signal)
             {
-                // 压力达到阈值,通知舵机复位
-                servo_quit = true;
+                // 检测压力值   
+                pressure_value = analogRead(PRESSURE_PIN);
                 vTaskDelay(pdMS_TO_TICKS(100));
-                xTaskNotify(xServoTaskHandle, 1, eSetValueWithOverwrite);
             }
         }
     }
