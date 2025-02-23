@@ -7,8 +7,9 @@
 // extern volatile byte servo_angle; // 记录舵机当前角度
 extern TaskHandle_t xServoTaskHandle;
 
-TaskHandle_t beginServoTask();
+TaskHandle_t beginServoTask(void *eventGroup);
 void servoSetup();
+void servoDetach();
 void servo(void *pvParameters);
 
 #endif

@@ -2,9 +2,8 @@
 #include "my_common.h"
 #include "my_servo.h"
 #include "my_pressure.h"
-#include <esp_wifi.h>
+#include "main.h"
 
-bool servo_quit = false; // 舵机退出执行任务标志位
 byte servo_angle;        // 记录舵机当前角度
 
 static const char *TAG = "my_servo";
@@ -12,7 +11,7 @@ static const char *TAG = "my_servo";
 static uint16_t calibration_value_0 = 30;    // Real 0 degree angle
 static uint16_t calibration_value_180 = 195; // Real 0 degree angle
 
-TaskHandle_t beginServoTask()
+TaskHandle_t beginServoTask(void *eventGroup)
 {
     // 舵机控制任务句柄
     TaskHandle_t xServoTaskHandle = NULL;
@@ -21,7 +20,7 @@ TaskHandle_t beginServoTask()
         servo,
         "servo",
         1024 * 3,
-        NULL,
+        eventGroup,
         1,
         &xServoTaskHandle);
     return xServoTaskHandle;
@@ -29,8 +28,6 @@ TaskHandle_t beginServoTask()
 
 void servoSetup()
 {
-    ESP_LOGI(TAG, "servo setup");
-
     // Configure the servo
     servo_config_t servo_cfg = {
         .max_angle = 180,
@@ -55,75 +52,53 @@ void servoSetup()
     servo_angle = calibration_value_0;
 }
 
+void servoDetach()
+{
+    iot_servo_deinit(LEDC_LOW_SPEED_MODE);
+}
+
 // 舵机控制任务
 void servo(void *pvParameters)
 {
-    uint32_t ulNotifiedValue;
+    bool runback = false;   // 是否需要回缩
     byte angleB, step;
     uint16_t speed;
-    bool waitNotify = true; // 是否需要等待任务通知
 
     for (;;)
     {
-#ifdef DEBUG
-        Serial.printf("舵机等待指令。servo_quit=%d\n", servo_quit);
-#endif
-
-        if (waitNotify)
+        EventBits_t recEvents = xEventGroupWaitBits(xEventGroup,
+            my_event_t::PRESSURE_START | my_event_t::SERVO_RUNBACK,
+            pdTRUE,   // 等待后清除事件位
+            pdFALSE,  // 不要求所有位都置位
+            portMAX_DELAY);
+        if(recEvents & my_event_t::PRESSURE_START)
         {
-            ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-#ifdef DEBUG
-            Serial.print("收到指令：");
-            Serial.println(ulNotifiedValue);
-#endif
+            runback = false;
+            ESP_LOGI(TAG, "收到PRESSURE_START事件");
         }
-        waitNotify = true;
-
-        switch (ulNotifiedValue)
+        if(recEvents & my_event_t::SERVO_RUNBACK)
         {
-        case 0:
-            // 0 正转
-            angleB = calibration_value_180;
-            step = 1;
-            speed = 100;
-            break;
-        case 1:
-            // 1 反转
+            runback = true;
+            ESP_LOGI(TAG, "收到SERVO_RUNBACK事件");
+        }
+        
+
+        if(runback)
+        {
             angleB = calibration_value_0;
             step = -1;
             speed = 50;
-            break;
-        default:
-            angleB = calibration_value_0;
-            step = 0;
-            speed = 0;
-            break;
+        } else {
+            angleB = calibration_value_180;
+            step = 1;
+            speed = 100;
         }
-
-        // esp_wifi_set_ps(WIFI_PS_NONE);
-
-        // while (1)
-        // {
-        //     // Set the angle of the servo
-        //     for (int i = calibration_value_0; i <= calibration_value_180; i += 1)
-        //     {
-        //         iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, i);
-        //         vTaskDelay(20 / portTICK_PERIOD_MS);
-        //     }
-        //     // Return to the initial position
-        //     iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, calibration_value_0);
-        //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-        // }
 
         for (; servo_angle != angleB; servo_angle += step)
         {
             byte threshold_times = 0;
-#ifdef DEBUG
-            Serial.print("servo angle: ");
-            Serial.println(servo_angle);
-#endif
             // 检查压力值
-            if (ulNotifiedValue == 0 && pressure_value > PRESSURE_THRESHOLD && ++threshold_times == 3)
+            if (!runback && pressure_value > PRESSURE_THRESHOLD && ++threshold_times == 1)
             {
                 // 检查压力值连续3次超过阈值,舵机回缩
                 break;
@@ -133,13 +108,18 @@ void servo(void *pvParameters)
         }
 
         // 如果舵机正向运动中手指遇到压力或者全程没有达到压力阈值则回缩
-        if (ulNotifiedValue == 0)
+        if (!runback)
         {
-            waitNotify = false;
-            ulNotifiedValue = 1;
-        } else {
+            runback = true;
+            xEventGroupSetBits(xEventGroup, my_event_t::SERVO_RUNBACK);
+            ESP_LOGI(TAG, "发送SERVO_RUNBACK事件");
+        }
+        else
+        {
             // 通知手指压力检测任务停止
-            pressure_stop_signal = true;
+            xEventGroupSetBits(xEventGroup, my_event_t::SERVO_END);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            ESP_LOGI(TAG, "发送SERVO_END事件");
         }
     }
 

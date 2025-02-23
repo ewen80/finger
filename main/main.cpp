@@ -8,7 +8,10 @@
 #include "my_pressure.h"
 #include "my_servo.h"
 
-// static const char *TAG = "My_Debug";
+#include <esp_wifi.h>
+#include "driver/ledc.h"
+
+static const char *TAG = "my_main";
 
 // led任务句柄
 TaskHandle_t xLEDTaskHandle = NULL;
@@ -16,6 +19,8 @@ TaskHandle_t xLEDTaskHandle = NULL;
 TaskHandle_t xFingerMeasurePressureTaskHandle = NULL;
 // 舵机控制任务句柄
 TaskHandle_t xServoTaskHandle = NULL;
+// 事件组句柄
+EventGroupHandle_t xEventGroup;
 
 // mqtt回调函数
 void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
@@ -54,15 +59,32 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
 // 手指开始触发
 void fingerTouch()
 {
-  // 启动压力检测
-  xTaskNotifyGive(xFingerMeasurePressureTaskHandle);
+    // 关闭系统节能
+    esp_wifi_set_ps(WIFI_PS_NONE);    
+    xEventGroupSetBits(xEventGroup, my_event_t::TOUCH_START);
+    ESP_LOGI(TAG, "发送手指触发事件");
+    xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
+    ESP_LOGI(TAG, "收到PRESSURE_END事件");
+
+    ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
+    // 打开系统节能
+    esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
 void setup()
 {
+  // 创建事件组
+  xEventGroup = xEventGroupCreate();
 
-  // 创建LED任务
-  xLEDTaskHandle = beginLedTask();
+  if (xEventGroup != NULL)
+  {
+    // 创建LED任务
+    xLEDTaskHandle = beginLedTask(xEventGroup);
+    // 创建手指压力检测任务
+    xFingerMeasurePressureTaskHandle = beginMeasurePressureTask(xEventGroup);
+    // 创建舵机控制任务
+    xServoTaskHandle = beginServoTask(xEventGroup);
+  }
 
   setLedFlash(xLEDTaskHandle);
 
@@ -79,16 +101,9 @@ void setup()
   wifiSetup();
   // 初始化NTP
   ntpSetup();
-  // 初始化舵机
-  servoSetup();
   // 连接mqtt
   mqttSetup(mqttCallback);
-
-  // 创建手指压力检测任务
-  xFingerMeasurePressureTaskHandle = beginMeasurePressureTask();
-  // 创建舵机控制任务
-  xServoTaskHandle = beginServoTask();
-
+  servoSetup();
 
 }
 

@@ -3,7 +3,7 @@
 
 volatile byte led_status = 0;
 
-TaskHandle_t beginLedTask()
+TaskHandle_t beginLedTask(void *eventGroup)
 {
 
   TaskHandle_t task;
@@ -11,8 +11,8 @@ TaskHandle_t beginLedTask()
   xTaskCreate(
       led,      // 任务名称
       "LED",    // 任务名称字符串
-      1024 * 2, // 任务堆栈大小
-      NULL,     // 传递的参数
+      1024 * 3, // 任务堆栈大小
+      eventGroup,     // 传递的参数
       1,        // 任务优先级
       &task);   // 任务句柄
   return task;

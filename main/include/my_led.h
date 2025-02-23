@@ -5,7 +5,7 @@
 
 extern TaskHandle_t xLEDTaskHandle;
 
-TaskHandle_t beginLedTask();
+TaskHandle_t beginLedTask(void *eventGroup);
 void led(void *pvParameters);
 void setLedON(TaskHandle_t led_task);
 void setLedOff(TaskHandle_t led_task);

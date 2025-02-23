@@ -1,8 +1,13 @@
 #include "my_common.h"
 #include "my_pressure.h"
 #include "my_servo.h"
+#include "main.h"
 
-TaskHandle_t beginMeasurePressureTask()
+volatile uint16_t pressure_value; 
+
+static const char *TAG = "my_pressure";
+
+TaskHandle_t beginMeasurePressureTask(void *eventGroup)
 {
     // 手指压力检测任务句柄
     TaskHandle_t xFingerMeasurePressureTaskHandle = NULL;
@@ -11,7 +16,7 @@ TaskHandle_t beginMeasurePressureTask()
         measure,
         "measure",
         1024 * 2,
-        NULL,
+        eventGroup,
         1,
         &xFingerMeasurePressureTaskHandle);
     return xFingerMeasurePressureTaskHandle;
@@ -21,25 +26,31 @@ TaskHandle_t beginMeasurePressureTask()
 // 手指压力检测任务
 void measure(void *pvParameters)
 {
-    uint32_t ulNotifiedValue;
     for (;;)
     {
-        // 尝试从通知中取值，如果没有则挂起
-        ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        if (ulNotifiedValue > 0)
+        xEventGroupWaitBits(xEventGroup,
+        my_event_t::TOUCH_START,
+        pdTRUE,   // 等待后清除事件位
+        pdFALSE,  // 不要求所有位都置位
+        portMAX_DELAY);
+        ESP_LOGI(TAG, "接收到TOUCH_START事件");
+
+        // 通知舵机任务启动
+        xEventGroupSetBits(xEventGroup, my_event_t::PRESSURE_START);
+        ESP_LOGI(TAG, "发送PRESSURE_START事件");
+        while (!(xEventGroupGetBits(xEventGroup) & my_event_t::SERVO_END))
         {
-            // 通知舵机任务启动
-            xTaskNotify(xServoTaskHandle, 0, eSetValueWithOverwrite);
-
-            pressure_stop_signal = false;
-
-            while (!pressure_stop_signal)
-            {
-                // 检测压力值   
-                pressure_value = analogRead(PRESSURE_PIN);
-                vTaskDelay(pdMS_TO_TICKS(100));
-            }
+            // 检测压力值   
+            pressure_value = analogRead(PRESSURE_PIN);
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
+        // 收到舵机停止事件后发送检测结束事件
+        // 手动清除事件位
+        xEventGroupClearBits(xEventGroup, my_event_t::SERVO_END);
+        ESP_LOGI(TAG, "接收到SERVO_END事件");
+        xEventGroupSetBits(xEventGroup, my_event_t::PRESSURE_END);
+        ESP_LOGI(TAG, "发送PRESSURE_END事件");
+
     }
     vTaskDelete(NULL);
 }
