@@ -11,6 +11,8 @@ typedef enum {
 
 extern EventGroupHandle_t xEventGroup;
 
+extern bool fingerTouched;
+
 
 void fingerTouch();
 

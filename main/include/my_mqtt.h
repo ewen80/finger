@@ -11,5 +11,6 @@ extern PubSubClient mqtt_client;
 
 void connectToMQTT();
 void mqttSetup(mqttCallbackFunc mqttCallback);
+bool mqttPublish(const char *topic, const char *payload);
 
 #endif

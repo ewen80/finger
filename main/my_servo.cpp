@@ -101,6 +101,7 @@ void servo(void *pvParameters)
             if (!runback && pressure_value > PRESSURE_THRESHOLD && ++threshold_times == 1)
             {
                 // 检查压力值连续3次超过阈值,舵机回缩
+                fingerTouched = true;
                 break;
             }
             iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, servo_angle);

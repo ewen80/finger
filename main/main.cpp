@@ -22,6 +22,8 @@ TaskHandle_t xServoTaskHandle = NULL;
 // 事件组句柄
 EventGroupHandle_t xEventGroup;
 
+bool fingerTouched = false; // 手指是否触碰到开关
+
 // mqtt回调函数
 void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
 {
@@ -52,6 +54,8 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
   // 触发手指开关指令
   if (topic == "/thing/action/execute")
   {
+    const char* msgId = doc["msgId"];
+    ESP_LOGI(TAG, "msgId %s", msgId);
     fingerTouch();
   }
 }
@@ -59,6 +63,7 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
 // 手指开始触发
 void fingerTouch()
 {
+    fingerTouched = false;
     // 关闭系统节能
     esp_wifi_set_ps(WIFI_PS_NONE);    
     xEventGroupSetBits(xEventGroup, my_event_t::TOUCH_START);

@@ -108,9 +108,10 @@ void connectToMQTT() {
    }
 }
 
-
-
-
+// payload要以\0结尾
+bool mqttPublish(const char *topic, const char *payload){
+  return mqtt_client.publish(topic, payload);
+}
 
 // mqtt配置
 void mqttSetup(mqttCallbackFunc mqttCallback){
