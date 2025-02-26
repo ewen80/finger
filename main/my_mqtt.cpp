@@ -111,6 +111,7 @@ void connectToMQTT() {
 
 // payload要以\0结尾
 bool mqttActionResponse(const char *msgId){
+  char output[256];
   JsonDocument doc;
   doc["msgId"] = msgId;
   doc["time"] = getTimeStamp();
@@ -120,11 +121,12 @@ bool mqttActionResponse(const char *msgId){
   data["actionCode"] = "touch";
 
   JsonObject data_outputParams = data["outputParams"].to<JsonObject>();
-  data_outputParams["result"] = "1";
+  data_outputParams["result"] = "1";  // 1表示触碰到开关 2表示未触碰到开关
 
   doc.shrinkToFit();  // optional
 
   serializeJson(doc, output);
+  return mqtt_client.publish(mqtt_action_publish_topic, output);
 
   
 }

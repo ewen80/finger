@@ -19,5 +19,6 @@ extern char mqtt_action_publish_topic[];
 
 void connectToMQTT();
 void mqttSetup(mqttCallbackFunc mqttCallback);
+bool mqttActionResponse(const char *msgId);
 
 #endif

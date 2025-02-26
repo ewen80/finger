@@ -69,7 +69,7 @@ void fingerTouch(const char *msgId)
     xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
     ESP_LOGI(TAG, "收到PRESSURE_END事件");
 
-    mqttPublish(mqtt_action_publish_topic, msgId);
+    mqttActionResponse(msgId);
 
     ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
     // 打开系统节能
