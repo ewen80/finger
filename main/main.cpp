@@ -50,18 +50,16 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
     return;
   }
 
-  String topic = String(mqtt_topic).substring(29);
-  // 触发手指开关指令
-  if (topic == "/thing/action/execute")
+  if (strcmp(mqtt_topic, mqtt_action_receive_topic) == 0)
   {
     const char* msgId = doc["msgId"];
     ESP_LOGI(TAG, "msgId %s", msgId);
-    fingerTouch();
+    fingerTouch(msgId);
   }
 }
 
 // 手指开始触发
-void fingerTouch()
+void fingerTouch(const char *msgId)
 {
     fingerTouched = false;
     // 关闭系统节能
@@ -70,6 +68,8 @@ void fingerTouch()
     ESP_LOGI(TAG, "发送手指触发事件");
     xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
     ESP_LOGI(TAG, "收到PRESSURE_END事件");
+
+    mqttPublish(mqtt_action_publish_topic, msgId);
 
     ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
     // 打开系统节能

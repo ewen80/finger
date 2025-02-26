@@ -14,6 +14,6 @@ extern EventGroupHandle_t xEventGroup;
 extern bool fingerTouched;
 
 
-void fingerTouch();
+void fingerTouch(const char *msgId);
 
 #endif

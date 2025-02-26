@@ -5,15 +5,18 @@
 #include "my_ntp.h"
 #include "my_wifi_idf.h"
 #include "WiFiClientSecure.h"
+#include <ArduinoJson.h>
 
 WiFiClientSecure esp_client;
 
 // MQTT Broker settings
-const char *mqtt_broker = "m1.tuyacn.com";
-const int mqtt_port = 8883;
-const char *mqtt_device_id = "268199f0f9b6668d1awni6";
-const char *mqtt_product_id = "fzxacazsxtlfbbcq";
-const char *mqtt_device_secret = "QIJ8JGSMESHS2NKx";
+const char *mqtt_broker = MQTT_BROKER;
+const int mqtt_port = MQTT_PORT;
+const char *mqtt_device_id = MQTT_DEVICE_ID;
+const char *mqtt_product_id = MQTT_PRODUCT_ID;
+const char *mqtt_device_secret = MQTT_DEVICE_SECRET;
+char mqtt_action_receive_topic[] =  "tylink/268199f0f9b6668d1awni6/thing/action/execute";
+char mqtt_action_publish_topic[] = "tylink/268199f0f9b6668d1awni6/thing/action/execute_response";
 char mqtt_username[] = "6c828cba434ff40c074wF2|signMethod=hmacSha256,timestamp=1607837283,secureMode=1,accessType=1";
 char mqtt_password[] = "9088f1608df4744e2a933ff905ffdde58dc7213510f25ad786a89896a5ea1104";
 
@@ -55,7 +58,7 @@ void setMqttUsername(){
   #endif
 }
 
-// 将字节数组转为对应的16进制字符串，使用完记得释放空间
+// 将字节数组转为对应的16进制字符串
 void bytes_to_hex_string_snprintf(const unsigned char *bytes, size_t length, char *dest) {
     for (size_t i = 0; i < length; ++i) {
         snprintf(&dest[i * 2], 3, "%02x", bytes[i]); // 每次最多写入两位16进制数加一个终止符
@@ -93,10 +96,8 @@ void connectToMQTT() {
       #ifdef DEBUG
         Serial.println("Connected to MQTT broker");
       #endif
-      //订阅动作
-      char execute_topic[] = "tylink/268199f0f9b6668d1awni6/thing/action/execute";
-      sprintf(execute_topic, "tylink/%s/thing/action/execute", mqtt_device_id);
-      mqtt_client.subscribe(execute_topic);
+      //订阅
+      mqtt_client.subscribe(mqtt_action_receive_topic);
     } else {
       #ifdef DEBUG
         Serial.print("Failed, rc=");
@@ -109,8 +110,23 @@ void connectToMQTT() {
 }
 
 // payload要以\0结尾
-bool mqttPublish(const char *topic, const char *payload){
-  return mqtt_client.publish(topic, payload);
+bool mqttActionResponse(const char *msgId){
+  JsonDocument doc;
+  doc["msgId"] = msgId;
+  doc["time"] = getTimeStamp();
+  doc["code"] = 0;
+
+  JsonObject data = doc["data"].to<JsonObject>();
+  data["actionCode"] = "touch";
+
+  JsonObject data_outputParams = data["outputParams"].to<JsonObject>();
+  data_outputParams["result"] = "1";
+
+  doc.shrinkToFit();  // optional
+
+  serializeJson(doc, output);
+
+  
 }
 
 // mqtt配置
@@ -121,5 +137,7 @@ void mqttSetup(mqttCallbackFunc mqttCallback){
   mqtt_client.setKeepAlive(60);
   mqtt_client.setCallback(mqttCallback); // Corrected callback function name
 
+  sprintf(mqtt_action_receive_topic, "tylink/%s/thing/action/execute", mqtt_device_id);
+  sprintf(mqtt_action_publish_topic, "tylink/%s/thing/action/execute_response", mqtt_device_id);
 }
 
