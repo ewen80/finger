@@ -50,30 +50,41 @@ void mqttCallback(char *mqtt_topic, byte *payload, unsigned int length)
     return;
   }
 
-  if (strcmp(mqtt_topic, mqtt_action_receive_topic) == 0)
+  if (strcmp(mqtt_topic, mqtt_property_set_topic) == 0)
   {
-    const char* msgId = doc["msgId"];
-    ESP_LOGI(TAG, "msgId %s", msgId);
-    fingerTouch(msgId);
+    if(!doc["data"].isNull() && !doc["data"]["switch"].isNull() && doc["data"]["switch"].is<bool>())
+    {
+      const bool switchState = doc["data"]["switch"];
+      ESP_LOGI(TAG, "switch %s", switchState ? "true" : "false");
+      if (switchState)
+      {
+        fingerTouch();
+      }
+    }
+    else
+    {
+      ESP_LOGW(TAG, "data字段为空或switch字段缺失或不是bool类型");
+    }
   }
 }
 
 // 手指开始触发
-void fingerTouch(const char *msgId)
+void fingerTouch()
 {
-    fingerTouched = false;
-    // 关闭系统节能
-    esp_wifi_set_ps(WIFI_PS_NONE);    
-    xEventGroupSetBits(xEventGroup, my_event_t::TOUCH_START);
-    ESP_LOGI(TAG, "发送手指触发事件");
-    xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
-    ESP_LOGI(TAG, "收到PRESSURE_END事件");
+  fingerTouched = false;
+  // 关闭系统节能
+  esp_wifi_set_ps(WIFI_PS_NONE);
+  xEventGroupSetBits(xEventGroup, my_event_t::TOUCH_START);
+  ESP_LOGI(TAG, "发送手指触发事件");
+  mqttReportDeviceStatus(my_event_t::TOUCH_START);
 
-    mqttActionResponse(msgId);
+  xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
+  ESP_LOGI(TAG, "收到PRESSURE_END事件");
+  mqttReportDeviceStatus(my_event_t::PRESSURE_END);
 
-    ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
-    // 打开系统节能
-    esp_wifi_set_ps(DEFAULT_PS_MODE);
+  ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
+  // 打开系统节能
+  esp_wifi_set_ps(DEFAULT_PS_MODE);
 }
 
 void setup()
@@ -109,7 +120,6 @@ void setup()
   // 连接mqtt
   mqttSetup(mqttCallback);
   servoSetup();
-
 }
 
 void loop()

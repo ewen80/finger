@@ -6,8 +6,13 @@
 #include "my_wifi_idf.h"
 #include "WiFiClientSecure.h"
 #include <ArduinoJson.h>
+#include <stdlib.h>
+#include <time.h>
+#include "my_utils.cpp"
 
 WiFiClientSecure esp_client;
+
+static const char *TAG = "my_mqtt";
 
 // MQTT Broker settings
 const char *mqtt_broker = MQTT_BROKER;
@@ -15,8 +20,8 @@ const int mqtt_port = MQTT_PORT;
 const char *mqtt_device_id = MQTT_DEVICE_ID;
 const char *mqtt_product_id = MQTT_PRODUCT_ID;
 const char *mqtt_device_secret = MQTT_DEVICE_SECRET;
-char mqtt_action_receive_topic[] =  "tylink/268199f0f9b6668d1awni6/thing/action/execute";
-char mqtt_action_publish_topic[] = "tylink/268199f0f9b6668d1awni6/thing/action/execute_response";
+char mqtt_property_set_topic[] =  "tylink/268199f0f9b6668d1awni6/thing/property/set";
+char mqtt_property_report_topic[] = "tylink/268199f0f9b6668d1awni6/thing/property/report";
 char mqtt_username[] = "6c828cba434ff40c074wF2|signMethod=hmacSha256,timestamp=1607837283,secureMode=1,accessType=1";
 char mqtt_password[] = "9088f1608df4744e2a933ff905ffdde58dc7213510f25ad786a89896a5ea1104";
 
@@ -49,6 +54,21 @@ LPAvTK33sefOT6jEm0pUBsV/fdUID+Ic/n4XuKxe9tQWskMJDE32p2u0mYRlynqI
 
 PubSubClient mqtt_client(esp_client);
 SHA256 sha256;
+
+char* msgId = new char[32];
+
+// 生成随机不重复的msgId
+void generateMsgId(char* msgId, size_t length) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    size_t charsetSize = sizeof(charset) - 1;
+
+    srand(time(NULL)); // 使用当前时间作为随机数种子
+
+    for (size_t i = 0; i < length - 1; ++i) {
+        msgId[i] = charset[rand() % charsetSize];
+    }
+    msgId[length - 1] = '\0'; // 确保字符串以空字符结尾
+}
 
 void setMqttUsername(){
   sprintf(mqtt_username, "%s|signMethod=hmacSha256,timestamp=%ld,secureMode=1,accessType=1", mqtt_device_id, getTimeStamp());
@@ -97,7 +117,7 @@ void connectToMQTT() {
         Serial.println("Connected to MQTT broker");
       #endif
       //订阅
-      mqtt_client.subscribe(mqtt_action_receive_topic);
+      mqtt_client.subscribe(mqtt_property_set_topic);
     } else {
       #ifdef DEBUG
         Serial.print("Failed, rc=");
@@ -109,26 +129,26 @@ void connectToMQTT() {
    }
 }
 
-// payload要以\0结尾
-bool mqttActionResponse(const char *msgId){
+
+bool mqttReportDeviceStatus(my_event_t event){
   char output[256];
   JsonDocument doc;
-  doc["msgId"] = msgId;
-  doc["time"] = getTimeStamp();
-  doc["code"] = 0;
+  generateMsgId(msgId, 32);
+  unsigned long timeStamp = getTimeStamp();
+  doc["msgId"].set(msgId);
+  doc["time"] = timeStamp;
+
 
   JsonObject data = doc["data"].to<JsonObject>();
-  data["actionCode"] = "touch";
-
-  JsonObject data_outputParams = data["outputParams"].to<JsonObject>();
-  data_outputParams["result"] = "1";  // 1表示触碰到开关 2表示未触碰到开关
+  JsonObject data_event = data["device_status"].to<JsonObject>();
+  data_event["value"] = eventToString(event);
+  data_event["time"] = timeStamp;
 
   doc.shrinkToFit();  // optional
 
   serializeJson(doc, output);
-  return mqtt_client.publish(mqtt_action_publish_topic, output);
-
-  
+  ESP_LOGI(TAG, "属性上报: %s", output);
+  return mqtt_client.publish(mqtt_property_report_topic, output);
 }
 
 // mqtt配置
@@ -139,7 +159,9 @@ void mqttSetup(mqttCallbackFunc mqttCallback){
   mqtt_client.setKeepAlive(60);
   mqtt_client.setCallback(mqttCallback); // Corrected callback function name
 
-  sprintf(mqtt_action_receive_topic, "tylink/%s/thing/action/execute", mqtt_device_id);
-  sprintf(mqtt_action_publish_topic, "tylink/%s/thing/action/execute_response", mqtt_device_id);
+  sprintf(mqtt_property_set_topic, "tylink/%s/thing/property/set", mqtt_device_id);
+  sprintf(mqtt_property_report_topic, "tylink/%s/thing/property/report", mqtt_device_id);
 }
+
+
 

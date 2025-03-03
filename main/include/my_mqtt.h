@@ -14,11 +14,11 @@
 typedef void (*mqttCallbackFunc)(char *, byte *, unsigned int );
 
 extern PubSubClient mqtt_client;
-extern char mqtt_action_receive_topic[];
-extern char mqtt_action_publish_topic[];
+extern char mqtt_property_set_topic[];
+extern char mqtt_property_report_topic[];
 
 void connectToMQTT();
 void mqttSetup(mqttCallbackFunc mqttCallback);
-bool mqttActionResponse(const char *msgId);
+bool mqttReportDeviceStatus(my_event_t event);
 
 #endif

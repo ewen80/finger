@@ -9,7 +9,6 @@ extern TaskHandle_t xServoTaskHandle;
 
 TaskHandle_t beginServoTask(void *eventGroup);
 void servoSetup();
-void servoDetach();
 void servo(void *pvParameters);
 
 #endif

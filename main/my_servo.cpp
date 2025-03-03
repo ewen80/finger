@@ -3,6 +3,7 @@
 #include "my_servo.h"
 #include "my_pressure.h"
 #include "main.h"
+#include "my_mqtt.h"
 
 byte servo_angle;        // 记录舵机当前角度
 
@@ -52,11 +53,6 @@ void servoSetup()
     servo_angle = calibration_value_0;
 }
 
-void servoDetach()
-{
-    iot_servo_deinit(LEDC_LOW_SPEED_MODE);
-}
-
 // 舵机控制任务
 void servo(void *pvParameters)
 {
@@ -75,11 +71,13 @@ void servo(void *pvParameters)
         {
             runback = false;
             ESP_LOGI(TAG, "收到PRESSURE_START事件");
+            mqttReportDeviceStatus(my_event_t::PRESSURE_START);
         }
         if(recEvents & my_event_t::SERVO_RUNBACK)
         {
             runback = true;
             ESP_LOGI(TAG, "收到SERVO_RUNBACK事件");
+            mqttReportDeviceStatus(my_event_t::SERVO_RUNBACK);
         }
         
 
@@ -102,6 +100,7 @@ void servo(void *pvParameters)
             {
                 // 检查压力值连续3次超过阈值,舵机回缩
                 fingerTouched = true;
+                mqttReportDeviceStatus(my_event_t::FINGER_TOUCHED);
                 break;
             }
             iot_servo_write_angle(LEDC_LOW_SPEED_MODE, 0, servo_angle);

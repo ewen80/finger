@@ -4,7 +4,9 @@
 
 
 WiFiUDP udp;
-NTPClient time_client(udp, 3600*8);
+const char* ntpServer = "ntp.aliyun.com";
+NTPClient time_client(udp, ntpServer, 0);
+
 
 void ntpSetup(){
   time_client.begin();
