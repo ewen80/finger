@@ -20,5 +20,6 @@ extern char mqtt_property_report_topic[];
 void connectToMQTT();
 void mqttSetup(mqttCallbackFunc mqttCallback);
 bool mqttReportDeviceStatus(my_event_t event);
+bool mqttReportSwitchStatus(bool switchState);
 
 #endif

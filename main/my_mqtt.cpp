@@ -151,6 +151,26 @@ bool mqttReportDeviceStatus(my_event_t event){
   return mqtt_client.publish(mqtt_property_report_topic, output);
 }
 
+bool mqttReportSwitchStatus(bool switchState){
+  char output[256];
+  JsonDocument doc;
+  generateMsgId(msgId, 32);
+  unsigned long timeStamp = getTimeStamp();
+  doc["msgId"].set(msgId);
+  doc["time"] = timeStamp;
+
+  JsonObject data = doc["data"].to<JsonObject>();
+  JsonObject switch_status = data["switch"].to<JsonObject>();
+  switch_status["value"] = switchState;
+  switch_status["time"] = timeStamp;
+
+  doc.shrinkToFit();  // optional
+
+  serializeJson(doc, output);
+  ESP_LOGI(TAG, "属性上报: %s", output);
+  return mqtt_client.publish(mqtt_property_report_topic, output);
+}
+
 // mqtt配置
 void mqttSetup(mqttCallbackFunc mqttCallback){
   esp_client.setCACert(ca_cert);

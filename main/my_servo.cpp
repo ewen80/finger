@@ -9,8 +9,8 @@ byte servo_angle;        // 记录舵机当前角度
 
 static const char *TAG = "my_servo";
 
-static uint16_t calibration_value_0 = 30;    // Real 0 degree angle
-static uint16_t calibration_value_180 = 195; // Real 0 degree angle
+static uint16_t calibration_value_0 = 0;    // Real 0 degree angle
+static uint16_t calibration_value_180 = 180; // Real 180 degree angle
 
 TaskHandle_t beginServoTask(void *eventGroup)
 {
@@ -50,7 +50,7 @@ void servoSetup()
     // Initialize the servo
     iot_servo_init(LEDC_LOW_SPEED_MODE, &servo_cfg);
 
-    servo_angle = calibration_value_0;
+    servo_angle = calibration_value_180;
 }
 
 // 舵机控制任务
@@ -81,19 +81,20 @@ void servo(void *pvParameters)
         }
         
 
-        if(runback)
+        if(!runback)
         {
             angleB = calibration_value_0;
             step = -1;
-            speed = 50;
+            speed = 100;
         } else {
             angleB = calibration_value_180;
             step = 1;
-            speed = 100;
+            speed = 50;
         }
 
         for (; servo_angle != angleB; servo_angle += step)
         {
+            // ESP_LOGI(TAG, "舵机角度: %d", servo_angle);
             byte threshold_times = 0;
             // 检查压力值
             if (!runback && pressure_value > PRESSURE_THRESHOLD && ++threshold_times == 1)

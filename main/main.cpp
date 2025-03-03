@@ -81,6 +81,7 @@ void fingerTouch()
   xEventGroupWaitBits(xEventGroup, my_event_t::PRESSURE_END, pdTRUE, pdTRUE, portMAX_DELAY);
   ESP_LOGI(TAG, "收到PRESSURE_END事件");
   mqttReportDeviceStatus(my_event_t::PRESSURE_END);
+  mqttReportSwitchStatus(false); // 上报开关状态为关闭
 
   ledc_stop(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, 0);
   // 打开系统节能
