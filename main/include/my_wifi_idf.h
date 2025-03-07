@@ -1,6 +1,8 @@
 #ifndef _MY_WIFI_IDF_H_
 #define _MY_WIFI_IDF_H_
 
+#include "esp_smartconfig.h"
+
 #if CONFIG_EXAMPLE_POWER_SAVE_MIN_MODEM
 #define DEFAULT_PS_MODE WIFI_PS_MIN_MODEM
 #elif CONFIG_EXAMPLE_POWER_SAVE_MAX_MODEM
