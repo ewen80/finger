@@ -51,11 +51,13 @@ static const char *TAG = "my_wifi_idf";
 // }
 
 static void smartconfig_task();
+static void wifiConnect(uint8_t *ssid, uint8_t *password);
 
 static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
+        ESP_LOGI(TAG, "WIFI_EVENT_STA_START");
         // xTaskCreate(smartconfig_task, "smartconfig_task", 1024*3, NULL, 3, NULL);
     }
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
@@ -80,28 +82,12 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         ESP_LOGI(TAG, "Got SSID and password");
 
         smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
-        wifi_config_t wifi_config;
+
         uint8_t ssid[33] = {0};
         uint8_t password[65] = {0};
         uint8_t rvd_data[33] = {0};
 
         // bzero(&wifi_config, sizeof(wifi_config_t));
-        wifi_config = {
-            .sta = {
-                .listen_interval = DEFAULT_LISTEN_INTERVAL,
-            },
-        };
-        memcpy(wifi_config.sta.ssid, evt->ssid, sizeof(wifi_config.sta.ssid));
-        memcpy(wifi_config.sta.password, evt->password, sizeof(wifi_config.sta.password));
-
-#ifdef CONFIG_SET_MAC_ADDRESS_OF_TARGET_AP
-        wifi_config.sta.bssid_set = evt->bssid_set;
-        if (wifi_config.sta.bssid_set == true)
-        {
-            ESP_LOGI(TAG, "Set MAC address of target AP: " MACSTR " ", MAC2STR(evt->bssid));
-            memcpy(wifi_config.sta.bssid, evt->bssid, sizeof(wifi_config.sta.bssid));
-        }
-#endif
 
         memcpy(ssid, evt->ssid, sizeof(evt->ssid));
         memcpy(password, evt->password, sizeof(evt->password));
@@ -118,14 +104,44 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
             printf("\n");
         }
 
-        ESP_ERROR_CHECK(esp_wifi_disconnect());
-        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-        esp_wifi_connect();
+        // Save SSID and password to NVS
+        nvs_handle_t nvs_handle;
+        ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READWRITE, &nvs_handle));
+        ESP_ERROR_CHECK(nvs_set_str(nvs_handle, "ssid", (char *)ssid));
+        ESP_ERROR_CHECK(nvs_set_str(nvs_handle, "password", (char *)password));
+        ESP_ERROR_CHECK(nvs_commit(nvs_handle));
+        nvs_close(nvs_handle);
+
+        wifiConnect(ssid, password);
     }
     else if (event_base == SC_EVENT && event_id == SC_EVENT_SEND_ACK_DONE)
     {
         xEventGroupSetBits(s_wifi_event_group, ESPTOUCH_DONE_BIT);
     }
+}
+
+static void wifiConnect(uint8_t *ssid, uint8_t *password)
+{
+    wifi_config_t wifi_config = {
+        .sta = {
+            .listen_interval = DEFAULT_LISTEN_INTERVAL,
+        },
+    };
+
+    memcpy(wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+    memcpy(wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+
+#ifdef CONFIG_SET_MAC_ADDRESS_OF_TARGET_AP
+    wifi_config.sta.bssid_set = evt->bssid_set;
+    if (wifi_config.sta.bssid_set == true)
+    {
+        ESP_LOGI(TAG, "Set MAC address of target AP: " MACSTR " ", MAC2STR(evt->bssid));
+        memcpy(wifi_config.sta.bssid, evt->bssid, sizeof(wifi_config.sta.bssid));
+    }
+#endif
+    ESP_ERROR_CHECK(esp_wifi_disconnect());
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    esp_wifi_connect();
 }
 
 void wifiSetup(void)
@@ -152,9 +168,9 @@ void wifiSetup(void)
     esp_pm_config_t pm_config = {
         .max_freq_mhz = CONFIG_EXAMPLE_MAX_CPU_FREQ_MHZ,
         .min_freq_mhz = CONFIG_EXAMPLE_MIN_CPU_FREQ_MHZ,
-#if CONFIG_FREERTOS_USE_TICKLESS_IDLE
-        .light_sleep_enable = true
-#endif
+    #if CONFIG_FREERTOS_USE_TICKLESS_IDLE
+            .light_sleep_enable = true
+    #endif
     };
     ESP_ERROR_CHECK(esp_pm_configure(&pm_config));
 #endif // CONFIG_PM_ENABLE
@@ -167,29 +183,43 @@ void wifiSetup(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    ESP_ERROR_CHECK( esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL) );
-    ESP_ERROR_CHECK( esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
 
-    // wifi_config_t wifi_config = {
-    //     .sta = {
-    //         .listen_interval = DEFAULT_LISTEN_INTERVAL,
-    //     },
-    // };
-
-    // strcpy((char *)wifi_config.sta.ssid, CONFIG_EXAMPLE_WIFI_SSID);
-    // strcpy((char *)wifi_config.sta.password, CONFIG_EXAMPLE_WIFI_PASSWORD);
-
-    // ESP_LOGI(TAG, "Connecting AP: %s with password: %s", wifi_config.sta.ssid, wifi_config.sta.password);
-
-    // ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    // ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_set_inactive_time(WIFI_IF_STA, DEFAULT_BEACON_TIMEOUT));
 
     ESP_LOGI(TAG, "esp_wifi_set_ps().");
     esp_wifi_set_ps(DEFAULT_PS_MODE);
-    smartconfig_task();
+
+    // Try to read SSID and password from NVS
+    nvs_handle_t nvs_handle;
+    char ssid[33] = {0};
+    char password[65] = {0};
+    size_t ssid_len = sizeof(ssid);
+    size_t password_len = sizeof(password);
+
+    ret = nvs_open("wifi_config", NVS_READONLY, &nvs_handle);
+    if (ret == ESP_OK)
+    {
+        ret = nvs_get_str(nvs_handle, "ssid", ssid, &ssid_len);
+        if (ret == ESP_OK)
+        {
+            ret = nvs_get_str(nvs_handle, "password", password, &password_len);
+            if (ret == ESP_OK)
+            {
+                ESP_LOGI(TAG, "Read SSID: %s, password: %s from NVS", ssid, password);
+                wifiConnect((uint8_t *)ssid, (uint8_t *)password);
+            }
+        }
+        nvs_close(nvs_handle);
+    }
+    else
+    {
+        ESP_LOGI(TAG, "No saved AP credentials, starting Smart Config");
+        smartconfig_task();
+    }
 }
 
 static void smartconfig_task()
